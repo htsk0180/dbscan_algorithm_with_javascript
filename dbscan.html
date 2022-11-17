@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <script>
+        // load the data
+        var data = [];
+        var dataFile = "urbanGB.centr.txt";
+        var req = new XMLHttpRequest();
+        req.open("GET", dataFile, false);
+        req.send(null);
+        var data = req.responseText.split("\n");
+        data = data.map(function (row) {
+            return row.split(",");
+        });
+        data = data.map(function (row) {
+            return row.map(function (value) {
+                return parseFloat(value);
+            });
+        });
+        document.write("Yüklenen data sayısı : " + data.length + " satır<br>");
+
+        // DBSCAN
+        var DBSCAN = function (data, eps, minPts) {
+            var clusters = [];
+            var visited = [];
+            var noise = [];
+            var clusterId = 0;
+
+            var getNeighbors = function (data, point, eps) {
+                var neighbors = [];
+                for (var i = 0; i < data.length; i++) {
+                    if (Math.sqrt(Math.pow(data[i][0] - point[0], 2) + Math.pow(data[i][1] - point[1], 2)) < eps) {
+                        neighbors.push(data[i]);
+                    }
+                }
+                return neighbors;
+            };
+
+            var expandCluster = function (data, point, clusterId, eps, minPts) {
+                var seeds = getNeighbors(data, point, eps);
+                var cluster = [];
+                if (seeds.length < minPts) {
+                    noise.push(point);
+                    return false;
+                } else {
+                    for (var i = 0; i < seeds.length; i++) {
+                        var result = visitPoint(seeds[i]);
+                        if (result !== false) {
+                            cluster.push(seeds[i]);
+                        }
+                    }
+                    while (seeds.length) {
+                        var currentPoint = seeds[0];
+                        var result = visitPoint(currentPoint);
+                        if (result !== false) {
+                            var resultNeighbors = getNeighbors(data, currentPoint, eps);
+                            if (resultNeighbors.length >= minPts) {
+                                for (var i = 0; i < resultNeighbors.length; i++) {
+                                    var neighborPoint = resultNeighbors[i];
+                                    var neighborPointIndex = seeds.indexOf(neighborPoint);
+                                    if (neighborPointIndex === -1) {
+                                        seeds.push(neighborPoint);
+                                    }
+                                }
+                            }
+                        }
+                        seeds.shift();
+                    }
+                    clusters.push(cluster);
+                    return true;
+                }
+            };
+
+            var visitPoint = function (point) {
+                var pointIndex = visited.indexOf(point);
+                if (pointIndex === -1) {
+                    visited.push(point);
+                    var expanded = expandCluster(data, point, clusterId, eps, minPts);
+                    if (expanded) {
+                        clusterId++;
+                    }
+                    return expanded;
+                } else {
+                    return false;
+                }
+            };
+
+            for (var i = 0; i < data.length; i++) {
+                visitPoint(data[i]);
+            }
+
+            return {
+                clusters: clusters,
+                noise: noise
+            };
+        };
+
+        // minPts ve eps değerlerini kullanıcıdan al
+        var eps = prompt("eps değerini giriniz:");
+        var minPts = prompt("minPts değerini giriniz:");
+        var dbscan = new DBSCAN(data, eps, minPts);
+        console.log(dbscan.clusters);
+        console.log(dbscan.noise);
+        
+        // sonuçları ekrana yazdır
+        document.write("Kümeler : " + dbscan.clusters.length + " adet<br>");
+        document.write("Gürültü : " + dbscan.noise.length + " adet<br>");
+        document.write("Toplam : " + (dbscan.clusters.length + dbscan.noise.length) + " adet<br>");
+
+        /**********************************************************************************************************************/
+
+        
+    </script>
+</body>
+</html>
